@@ -14,8 +14,6 @@ https://ieeexplore.ieee.org/document/7728092) we based our implementation.
 
 If you use this code, please cite the corresponding paper(s).
 
-Please note that at some point we will push future updates only to [https://github.com/inet-tub/fast-failover](https://github.com/inet-tub/fast-failover).
-
 ## Bibtex
 ```
 @inproceedings{SRDS19-FRR,
