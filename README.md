@@ -1,5 +1,5 @@
 This repository is a fork from [https://github.com/inet-tub/fast-failover](https://github.com/inet-tub/fast-failover) and contains the source code for my bachelor thesis: "Improving the Resilience of Fast Failover Routing: Planar Graphs". 
-I am indebted to [Klaus-Tycho Foerster](https://ktfoerster.github.io/), [Andrzej Kamisinski](https://home.agh.edu.pl/~andrzejk/), [Yvonne-Anne Pignolet](http://yvonneanne.pignolet.ch/), [Stefan Schmid](https://www.inet.tu-berlin.de/menue/people/profs0/stefan/), [Gilles Tredan](https://homepages.laas.fr/gtredan/) for providing me with the simulation framework for my experiments.  
+I am indebted to [Klaus-Tycho Foerster](https://ktfoerster.github.io/), [Andrzej Kamisinski](https://home.agh.edu.pl/~andrzejk/), [Yvonne-Anne Pignolet](http://yvonneanne.pignolet.ch/), [Stefan Schmid](https://www.inet.tu-berlin.de/menue/people/profs0/stefan/), [Gilles Tredan](https://homepages.laas.fr/gtredan/) for publishing their simulation framework source code publicly. 
 
 ## Overview
 
