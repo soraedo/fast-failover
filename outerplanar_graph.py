@@ -1,6 +1,7 @@
 import networkx as nx
+from networkx.algorithms import approximation as ap
 import matplotlib.pyplot as plt
-DEBUG = False
+DEBUG = True
 
 
 # Implementation of an Outerplanar Routing Scheme.
@@ -59,10 +60,21 @@ def createOuterplanar(g):
     # now we create a planar embedding of G3
     # Step 5
     biconnected = make_biconnected(G4)
+    #nx.draw_planar(biconnected, with_labels=True, node_color='lightgreen', edge_color='red')
+    #plt.show()
+    
     # Step 6
-    path = generate_outer_face(biconnected)
+    #path = generate_outer_face(biconnected)
+    
+
+    #ChatGPT Experimentations
+    #G5, outer_face = augment_to_maximal_outerplanar(biconnected)
+    #outer_face = outerplanar_embedding_from_dual(G5)
+    #G_augmented, embedding_aug, outer_face = get_embedding_after_triangulation(biconnected)
+    #return convert_to_outerplanar_embedding_from_augmented(G4, embedding_aug, set(G4.edges()))
+    
     # Step 7
-    return convert_to_outerplanar_embedding(G4, path)
+    return convert_to_outerplanar_embedding(G4, outer_face)
 
 # dummy function which returns the original topology. Used for the EDP Routing Scheme, which routes on the original graph.
 def original(g):
@@ -410,19 +422,196 @@ def is_outerplanar(graph):
 
     return nx.is_planar(G)
 
+# Experimentations for finding an algorithm that computers the outer face of an outerplanar subgraph with less time complexity than nx.simple_cycles
+'''
+# Experiment: Build dual tree of maximal outerplanar graph. Traverse the dual to order the faces. Reconstruct outer face based on the order from the last step.
+# Results are incomplete. Errors in the outerplanar building stage.
+
+# function to build a dual tree from a maximal outerplanar graph.
+def build_dual_tree(G):
+    _, embedding = nx.check_planarity(G)
+    visited = set()
+    face_map = {}
+    face_id = 0
+    face_nodes = []
+
+    # Extract faces and map shared edges
+    for u in embedding:
+        for v in embedding[u]:
+            if (u, v) not in visited:
+                face = tuple(embedding.traverse_face(u, v))
+                face_nodes.append(face)
+                face_map[face_id] = face
+                for i in range(len(face)):
+                    a, b = face[i], face[(i + 1) % len(face)]
+                    visited.add((a, b))
+                face_id += 1
+
+    # Identify outer face (largest)
+    outer_face_id = max(face_map, key=lambda fid: len(face_map[fid]))
+
+    # Build dual graph (connect faces via shared edges)
+    dual = nx.Graph()
+    for i in face_map:
+        if i == outer_face_id:
+            continue  # skip outer face
+        dual.add_node(i)
+
+    # Build adjacency
+    edge_to_faces = {}
+    for fid, face in face_map.items():
+        if fid == outer_face_id:
+            continue
+        for i in range(len(face)):
+            a, b = sorted((face[i], face[(i + 1) % len(face)]))
+            edge_to_faces.setdefault((a, b), []).append(fid)
+
+    for face_list in edge_to_faces.values():
+        if len(face_list) == 2:
+            f1, f2 = face_list
+            dual.add_edge(f1, f2)
+
+    return dual, face_map, outer_face_id
+
+# function to build the outerplanar embedding using the dual of a maximal outerplanar graph.
+def outerplanar_embedding_from_dual(G):
+    dual, face_map, outer_face_id = build_dual_tree(G)
+
+    # Start from any leaf node in the dual tree
+    start = [node for node in dual.nodes if dual.degree[node] == 1][0]
+    visited_faces = set()
+    stack = [(start, None)]
+    face_order = []
+
+    while stack:
+        curr, parent = stack.pop()
+        if curr in visited_faces:
+            continue
+        visited_faces.add(curr)
+        face_order.append(curr)
+        for neighbor in dual.neighbors(curr):
+            if neighbor != parent:
+                stack.append((neighbor, curr))
+
+    # Reconstruct vertex ordering from face sequence
+    outer_cycle = []
+    added = set()
+    for fid in face_order:
+        face = face_map[fid]
+        for v in face:
+            if v not in added:
+                outer_cycle.append(v)
+                added.add(v)
+
+    return outer_cycle
+
+# Experiment 2: Based on the paper "Finding Hamiltonian cycles in certain planar graphs" by Robert J. Cimikowski from 1990. Only works on inner triangulations: 2-connected 
+# planar graphs, where every interior face is a triangle (maximal outerplanar graps fall into this category).
+
+# Step 1: Assign nodes to levels using BFS
+def assign_levels(graph):
+    levels = {}
+    start_node = list(graph.nodes)[0]
+    queue = [(start_node, 0)]
+    visited = set()
+    
+    while queue:
+        node, level = queue.pop(0)
+        if node not in visited:
+            visited.add(node)
+            levels[node] = level
+            for neighbor in graph.neighbors(node):
+                if neighbor not in visited:
+                    queue.append((neighbor, level + 1))
+    
+    return levels
+
+# Step 2: Find ramps, which are edges that unify adjacent levels
+def find_ramps(graph, levels):
+    ramps = []
+    for u, v in graph.edges():
+        if abs(levels[u] - levels[v]) == 1:
+            ramps.append((u, v))
+    return ramps
+
+# Step 3: Construct the Hamiltonian Cycle by joining all levels with ramps.
+def construct_hamiltonian_cycle(graph):
+    levels = assign_levels(graph)
+    ramps = find_ramps(graph, levels)
+    
+    if not ramps:
+        return None
+    
+    path = []
+    level_nodes = sorted(levels.keys(), key=lambda x: levels[x])
+    
+    for i in range(len(level_nodes) - 1):
+        path.append(level_nodes[i])
+    
+    return path
+'''
+    
 #Test the Outerplanar Routing Scheme using a Zoo Topology graph. 
-#Some suitable graphs with 20<|V|<50 and not already outerplanar: Geant2009, Renater2010, SwitchL3
+#Some suitable graphs with 20<|V|<50 and not already outerplanar: Geant2009, Renater2010, SwitchL3, HostwayInternational
 
 if DEBUG:
-    file_path = "./benchmark_graphs/Surfnet.graphml" 
-    G = nx.Graph(nx.read_graphml(file_path))
+    file_path = "./benchmark_graphs/Renater2010.graphml" 
+    g = nx.Graph(nx.read_graphml(file_path))
+    
+    # Prepare graph
+    G = nx.Graph()
+    G.add_nodes_from(g)
+    G.add_edges_from(g.edges)
 
-    # Check if graph is planar. If yes, if it is outerplanar
-    print(f"Is G outerplanar? {is_outerplanar(G)}")
+    # convert graph labels to integers, remove self-loops, and make sure graph is undirected
+    mapping = dict()
+    for i in range(101):
+        mapping[str(i)] = i
+    G = nx.relabel_nodes(G, mapping, copy = True)
+    G.remove_edges_from(nx.selfloop_edges(G))
+    G.to_undirected()
 
-    embedding = createOuterplanar(G)
-    print(f"Is output outerplanar: {is_outerplanar(embedding)}")
+    # Find an outerplanar subgraph
+    G1 = find_triangular_cactus(G)
+    G2 = find_square_cactus(G, G1)
+    G3 = find_edges(G, G2)
+    G4 = greedy_edges(G, G3)
 
+    # Augment to biconnected outerplanar
+    biconnected = make_biconnected(G4)
+
+    # Augment to maximal outerplanar from biconnected
+    maximal, alpha = nx.complete_to_chordal_graph(biconnected)
+    
+    is_planar, embedding = nx.check_planarity(maximal)
+
+    # Experiments with TSP. Does not return the correct outer face.
+    #path = ap.traveling_salesman_problem(biconnected, weight='weight', nodes=set(biconnected.nodes), cycle=True)
+    #print(path)
+    #unique_path = []
+    #for a in path:
+    #    if a not in unique_path:
+    #        unique_path.append(a)
+    #print(unique_path)
+    #embedding = convert_to_outerplanar_embedding(G4, unique_path)
+    #path2 = generate_outer_face(biconnected)
+    #print(path2)
+    
+    #is_planar, embedding2 = nx.check_planarity(maximal)
+
+    plt.subplot(212)
+    nx.draw_circular(embedding, with_labels=True)
+    plt.show()
+
+    #embedding = createOuterplanar(G)
+    #print(f"Is output outerplanar: {is_outerplanar(embedding)}")
+    
+    #print(f"Is output a correct planar embedding: {embedding.check_structure()}")
+
+    #nx.draw_planar(embedding, with_labels=True)
+    #plt.show()
+
+    '''
     # Simulate experiment
     s = 26
     d = 0
@@ -461,4 +650,6 @@ if DEBUG:
     # Test for connectivity
     dist = nx.shortest_path_length(G, target=d)
     print(f"shortest paths: {dist}")
-    print(f"Is s in dist? {s in dist}")
+    print(f"Is s in dist? {s in dist}")'
+    '''
+
